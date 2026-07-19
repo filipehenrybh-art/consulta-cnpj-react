@@ -72,3 +72,13 @@ export function ExternalLinkIcon({ className = 'h-4 w-4' }) {
     </svg>
   )
 }
+
+export function UsersIcon({ className = 'h-5 w-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M15 5.2a3 3 0 0 1 0 5.6M16 13.2a4.5 4.5 0 0 1 4.5 4.3V19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}

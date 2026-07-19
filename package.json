@@ -5,10 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:auth": "node scripts/auth-server.mjs",
+    "dev:full": "node scripts/dev-full.mjs",
+    "db:migrate": "node --env-file=.env scripts/migrate-database.mjs",
+    "db:import-local": "node --env-file=.env scripts/import-local-billing.mjs",
+    "db:check": "node --env-file=.env scripts/check-database.mjs",
+    "tunnel:webhook": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-webhook-tunnel.ps1",
+    "test": "node --test tests/billing.test.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

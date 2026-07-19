@@ -1,6 +1,9 @@
 node_modules/
 dist/
 .vercel/
+data/
+.tools/
+tmp/
 .env
 .env.*
 !.env.example

@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
-import JsonExplorer, { countFilledFields } from './components/JsonExplorer.jsx'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import JsonExplorer, { countFilledFields, formatValue, humanizeKey } from './components/JsonExplorer.jsx'
+import GoogleAuthPanel from './components/GoogleAuthPanel.jsx'
 import {
   AlertIcon,
   BuildingIcon,
@@ -9,9 +10,10 @@ import {
   ExternalLinkIcon,
   SearchIcon,
   ShieldIcon,
+  UsersIcon,
 } from './components/Icons.jsx'
 
-const API_BASE_URL = 'https://publica.cnpj.ws/cnpj'
+const API_BASE_URL = '/api/cnpj'
 
 function onlyDigits(value) {
   return value.replace(/\D/g, '').slice(0, 14)
@@ -92,10 +94,11 @@ function buildAddress(establishment) {
 }
 
 function getErrorMessage(status, payload) {
+  if (status === 401) return payload?.error || 'Entre com sua conta Google para realizar a consulta.'
   if (status === 404) return 'CNPJ não encontrado na base pública.'
   if (status === 429) return 'Limite de consultas atingido. Aguarde completar 60 segundos e tente novamente.'
-  if (status >= 500) return 'A API está temporariamente indisponível. Tente novamente em alguns instantes.'
-  return payload?.detalhes || payload?.message || payload?.mensagem || 'Não foi possível concluir a consulta.'
+  if (status >= 500) return payload?.error || 'A API está temporariamente indisponível. Tente novamente em alguns instantes.'
+  return payload?.error || payload?.detalhes || payload?.message || payload?.mensagem || 'Não foi possível concluir a consulta.'
 }
 
 function SummaryItem({ label, value, wide = false }) {
@@ -138,8 +141,9 @@ function LoadingState() {
 const REGULARITY_CHECKS = [
   {
     title: 'Federal — RFB e PGFN',
-    description: 'Tributos federais e inscrições na Dívida Ativa da União.',
-    label: 'Emitir certidão federal',
+    description: 'Tributos federais e inscrições na Dívida Ativa da União. A emissão depende da situação fiscal registrada pela Receita.',
+    note: 'Se aparecer “informações insuficientes”, existem pendências. Use “Como resolver” no portal e consulte o Relatório de Situação Fiscal no e-CAC.',
+    label: 'Consultar certidão federal',
     url: 'https://www.gov.br/pt-br/servicos/emitir-certidao-de-regularidade-fiscal',
   },
   {
@@ -183,6 +187,11 @@ function RegularitySection({ establishment }) {
             </span>
             <h3 className="mt-3 text-sm font-semibold text-slate-100">{check.title}</h3>
             <p className="mt-2 flex-1 text-xs leading-5 text-slate-500">{check.description}</p>
+            {check.note && (
+              <p className="mt-3 rounded-xl border border-amber-300/10 bg-amber-300/[0.04] px-3 py-2.5 text-[11px] leading-5 text-amber-100/70">
+                {check.note}
+              </p>
+            )}
             <a href={check.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] px-3 text-sm font-medium text-cyan-200 transition hover:bg-cyan-300/[0.11]">
               {check.label}
               <ExternalLinkIcon />
@@ -209,6 +218,264 @@ function RegularitySection({ establishment }) {
   )
 }
 
+function PartnersSection({ partners, responsibleRole }) {
+  const hasPartners = Array.isArray(partners) && partners.length > 0
+
+  return (
+    <section className="rounded-3xl border border-white/[0.08] bg-[#0b111d]/85 p-4 shadow-2xl shadow-black/20 sm:p-6">
+      <div className="flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-indigo-300/20 bg-indigo-400/[0.08] text-indigo-300">
+          <UsersIcon />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-300/80">Quadro societário</p>
+          <h2 className="mt-1 text-xl font-semibold text-white">Sócios e responsáveis</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            Pessoas e empresas vinculadas ao CNPJ conforme os dados disponibilizados pela Receita Federal.
+          </p>
+        </div>
+      </div>
+
+      {responsibleRole && (
+        <div className="mt-5 rounded-xl border border-indigo-300/15 bg-indigo-300/[0.05] px-4 py-3 text-sm text-slate-300">
+          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Qualificação do responsável</span>
+          <p className="mt-1 font-medium text-indigo-200">{responsibleRole}</p>
+        </div>
+      )}
+
+      {hasPartners ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {partners.map((partner, index) => {
+            const qualification = partner?.qualificacao_socio?.descricao || partner?.qualificacao_socio
+            const representativeQualification = partner?.qualificacao_representante?.descricao || partner?.qualificacao_representante
+
+            return (
+              <article key={`${partner?.nome || 'socio'}-${index}`} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-sm font-semibold text-indigo-200">
+                    {(partner?.nome || '?').trim().charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="break-words text-sm font-semibold leading-5 text-slate-100">{partner?.nome || 'Nome não informado'}</h3>
+                    <p className="mt-1 text-xs font-medium text-indigo-300">{qualification || 'Qualificação não informada'}</p>
+                  </div>
+                </div>
+
+                <dl className="mt-4 space-y-2 border-t border-white/[0.06] pt-3 text-xs">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-slate-500">Tipo</dt>
+                    <dd className="text-right text-slate-300">{partner?.tipo || 'Não informado'}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-slate-500">Entrada</dt>
+                    <dd className="text-right text-slate-300">{formatDate(partner?.data_entrada)}</dd>
+                  </div>
+                  {partner?.faixa_etaria && (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-slate-500">Faixa etária</dt>
+                      <dd className="text-right text-slate-300">{partner.faixa_etaria}</dd>
+                    </div>
+                  )}
+                  {partner?.pais?.nome && (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-slate-500">País</dt>
+                      <dd className="text-right text-slate-300">{partner.pais.nome}</dd>
+                    </div>
+                  )}
+                </dl>
+
+                {partner?.nome_representante && (
+                  <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Representante legal</p>
+                    <p className="mt-1 text-xs font-medium text-slate-200">{partner.nome_representante}</p>
+                    {representativeQualification && <p className="mt-0.5 text-[11px] text-slate-500">{representativeQualification}</p>}
+                  </div>
+                )}
+              </article>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center">
+          <p className="text-sm text-slate-400">Nenhum sócio ou responsável foi informado pela fonte para este CNPJ.</p>
+          <p className="mt-1 text-xs text-slate-600">A disponibilidade varia conforme a natureza jurídica e a atualização cadastral da empresa.</p>
+        </div>
+      )}
+
+      <p className="mt-4 text-xs leading-5 text-slate-600">
+        CPFs de pessoas físicas não são exibidos. A API descaracteriza esses documentos conforme as regras de proteção de dados da fonte oficial.
+      </p>
+    </section>
+  )
+}
+
+function PrintableDataNode({ label, value, depth = 0 }) {
+  if (Array.isArray(value)) {
+    return (
+      <section className="print-data-group">
+        <h3>{humanizeKey(label)} <small>({value.length} {value.length === 1 ? 'item' : 'itens'})</small></h3>
+        {value.length === 0 ? <p className="print-data-empty">Lista vazia</p> : value.map((item, index) => (
+          <div key={index} className="print-data-array-item">
+            <h4>Item {index + 1}</h4>
+            {item && typeof item === 'object'
+              ? <PrintableDataNode label={`item_${index + 1}`} value={item} depth={depth + 1} />
+              : <div className="print-data-field"><span>Valor</span><strong>{formatValue(label, item)}</strong></div>}
+          </div>
+        ))}
+      </section>
+    )
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value)
+    const primitives = entries.filter(([, item]) => !item || typeof item !== 'object')
+    const nested = entries.filter(([, item]) => item && typeof item === 'object')
+
+    return (
+      <section className={`print-data-group print-data-depth-${Math.min(depth, 3)}`}>
+        <h3>{humanizeKey(label)}</h3>
+        {primitives.length > 0 && (
+          <div className="print-data-grid">
+            {primitives.map(([key, item]) => (
+              <div key={key} className="print-data-field">
+                <span>{humanizeKey(key)}</span>
+                <strong>{formatValue(key, item)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+        {nested.map(([key, item]) => <PrintableDataNode key={key} label={key} value={item} depth={depth + 1} />)}
+      </section>
+    )
+  }
+
+  return (
+    <div className="print-data-field">
+      <span>{humanizeKey(label)}</span>
+      <strong>{formatValue(label, value)}</strong>
+    </div>
+  )
+}
+
+function PrintableReport({ data, establishment, phones, stateRegistrations }) {
+  const partners = Array.isArray(data?.socios) ? data.socios : []
+
+  return (
+    <article className="print-report" aria-hidden="true">
+      <header className="print-report-header">
+        <div>
+          <p className="print-report-brand">Pilar Finanças</p>
+          <h1>Relatório Empresarial Premium</h1>
+          <p>Consulta cadastral e roteiro de regularidade</p>
+        </div>
+        <div className="print-report-date">
+          Gerado em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())}
+        </div>
+      </header>
+
+      <section className="print-report-section">
+        <h2>Identificação da empresa</h2>
+        <div className="print-report-grid">
+          <div><span>Razão social</span><strong>{data?.razao_social || 'Não informado'}</strong></div>
+          <div><span>Nome fantasia</span><strong>{establishment?.nome_fantasia || 'Não informado'}</strong></div>
+          <div><span>CNPJ</span><strong>{formatCnpj(establishment?.cnpj)}</strong></div>
+          <div><span>Situação cadastral</span><strong>{establishment?.situacao_cadastral || 'Não informado'}</strong></div>
+          <div><span>Capital social</span><strong>{formatMoney(data?.capital_social)}</strong></div>
+          <div><span>Porte</span><strong>{data?.porte?.descricao || 'Não informado'}</strong></div>
+          <div><span>Natureza jurídica</span><strong>{data?.natureza_juridica?.descricao || 'Não informado'}</strong></div>
+          <div><span>Inscrições estaduais</span><strong>{stateRegistrations}</strong></div>
+        </div>
+      </section>
+
+      <section className="print-report-section">
+        <h2>Endereço e contato</h2>
+        <div className="print-report-grid">
+          <div className="print-report-wide"><span>Endereço</span><strong>{buildAddress(establishment)}</strong></div>
+          <div><span>Cidade / UF</span><strong>{[establishment?.cidade?.nome, establishment?.estado?.sigla].filter(Boolean).join(' / ') || 'Não informado'}</strong></div>
+          <div><span>CEP</span><strong>{formatCep(establishment?.cep)}</strong></div>
+          <div><span>Telefone</span><strong>{phones.join(' · ') || 'Não informado'}</strong></div>
+          <div><span>E-mail</span><strong>{establishment?.email || 'Não informado'}</strong></div>
+        </div>
+      </section>
+
+      <section className="print-report-section">
+        <h2>Atividade econômica principal</h2>
+        <p>
+          {establishment?.atividade_principal
+            ? `${establishment.atividade_principal.subclasse || establishment.atividade_principal.id || ''} — ${establishment.atividade_principal.descricao || 'Descrição não informada'}`
+            : 'Não informado'}
+        </p>
+      </section>
+
+      <section className="print-report-section">
+        <h2>Sócios e responsáveis</h2>
+        {partners.length > 0 ? (
+          <table>
+            <thead><tr><th>Nome</th><th>Qualificação</th><th>Entrada</th></tr></thead>
+            <tbody>
+              {partners.map((partner, index) => (
+                <tr key={`${partner?.nome || 'socio'}-${index}`}>
+                  <td>{partner?.nome || 'Não informado'}</td>
+                  <td>{partner?.qualificacao_socio?.descricao || partner?.qualificacao_socio || 'Não informado'}</td>
+                  <td>{formatDate(partner?.data_entrada)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <p>Nenhum sócio ou responsável informado.</p>}
+      </section>
+
+      <section className="print-report-section">
+        <h2>Certidões e indícios de dívidas</h2>
+        <ul className="print-report-checklist">
+          {REGULARITY_CHECKS.map((check) => <li key={check.title}><strong>{check.title}:</strong> consulta necessária na fonte oficial.</li>)}
+          <li><strong>Estadual:</strong> consultar SEFAZ e Procuradoria do estado de {establishment?.estado?.sigla || 'domicílio'}.</li>
+          <li><strong>Municipal:</strong> consultar a prefeitura de {establishment?.cidade?.nome || 'domicílio'}.</li>
+        </ul>
+        <p className="print-report-note">A situação ativa do CNPJ não comprova ausência de dívidas. A regularidade depende das certidões vigentes emitidas pelos órgãos competentes.</p>
+      </section>
+
+      <section className="print-report-section print-report-analysis">
+        <h2>Informações analíticas completas</h2>
+        <p className="print-report-analysis-intro">
+          A seção abaixo reproduz e organiza todos os campos disponíveis na resposta da consulta, incluindo dados adicionais, objetos e listas.
+        </p>
+        <div className="print-data-root">
+          {Object.entries(data || {}).map(([key, value]) => (
+            <PrintableDataNode key={key} label={key} value={value} />
+          ))}
+        </div>
+      </section>
+
+      <footer className="print-report-footer">Desenvolvido por Pilar Finanças by Filipe Henry</footer>
+    </article>
+  )
+}
+
+function LoginModal({ onClose, onAuthenticated }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#03060c]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <div className="w-full max-w-md rounded-3xl border border-white/[0.1] bg-[#0b111d] p-5 shadow-2xl shadow-black/60 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-200">Plano Básico</span>
+            <h2 id="login-title" className="mt-4 text-2xl font-semibold text-white">Entre para consultar</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">A conta Google é gratuita e identifica com segurança seu plano atual.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] text-lg text-slate-500 transition hover:text-white">×</button>
+        </div>
+
+        <div className="my-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] px-4 py-3 text-xs leading-5 text-slate-400">
+          Consulte dados cadastrais e sócios no plano Básico. Certidões, indícios de dívidas e relatórios ficam disponíveis no Premium.
+        </div>
+
+        <GoogleAuthPanel onAuthenticated={onAuthenticated} allowDemo={false} />
+        <p className="mt-5 text-center text-[11px] leading-5 text-slate-600">Entrar não inicia nenhuma cobrança.</p>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [cnpj, setCnpj] = useState('')
   const [data, setData] = useState(null)
@@ -216,7 +483,85 @@ export default function App() {
   const [error, setError] = useState('')
   const [showRaw, setShowRaw] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [billingStatus, setBillingStatus] = useState({
+    plan: 'basic',
+    premiumActive: false,
+    activeUntil: null,
+    subscriptionStatus: null,
+    cancelable: false,
+  })
+  const [user, setUser] = useState(null)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [accountNotice, setAccountNotice] = useState('')
+  const [pendingSearch, setPendingSearch] = useState('')
   const resultsRef = useRef(null)
+
+  const loadAccount = useCallback(async () => {
+    const [sessionResponse, billingResponse] = await Promise.all([
+      fetch('/api/auth/session', { credentials: 'include' }),
+      fetch('/api/billing/status', { credentials: 'include' }),
+    ])
+
+    if (sessionResponse.ok) {
+      const sessionResult = await sessionResponse.json()
+      setUser(sessionResult.user)
+    } else {
+      setUser(null)
+    }
+
+    if (billingResponse.ok) {
+      const billingResult = await billingResponse.json()
+      setBillingStatus(billingResult.billing)
+    } else {
+      setBillingStatus({ plan: 'basic', premiumActive: false, activeUntil: null, subscriptionStatus: null, cancelable: false })
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAccount().catch(() => {})
+  }, [loadAccount])
+
+  const handleAuthenticated = useCallback((profile) => {
+    setUser(profile)
+    setAuthOpen(false)
+    setAccountNotice(pendingSearch ? 'Login confirmado. Iniciando sua consulta...' : 'Login confirmado. Você já pode consultar gratuitamente.')
+    loadAccount().catch(() => {})
+  }, [loadAccount, pendingSearch])
+
+  async function signOut() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    } catch {
+      // A interface encerra a sessão visual mesmo se a API local estiver indisponível.
+    }
+    window.google?.accounts?.id?.disableAutoSelect()
+    setUser(null)
+    setBillingStatus({ plan: 'basic', premiumActive: false, activeUntil: null, subscriptionStatus: null, cancelable: false })
+    setAccountNotice('')
+    setPendingSearch('')
+  }
+
+  async function cancelMonthlyRenewal() {
+    if (!window.confirm('Deseja cancelar a renovação mensal? O Premium continuará disponível até o fim do período já pago.')) return
+
+    setCancelLoading(true)
+    setAccountNotice('')
+    try {
+      const response = await fetch('/api/billing/cancel', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Não foi possível cancelar a renovação.')
+      await loadAccount()
+      setAccountNotice('Renovação mensal cancelada. Seu acesso permanece ativo até a data indicada.')
+    } catch (cancelError) {
+      setAccountNotice(cancelError.message || 'Não foi possível cancelar a renovação agora.')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
 
   const establishment = data?.estabelecimento
   const fieldCount = useMemo(() => (data ? countFilledFields(data) : 0), [data])
@@ -238,16 +583,7 @@ export default function App() {
       .join(' · ')
   }, [establishment])
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-    const cleanCnpj = onlyDigits(cnpj)
-
-    if (!validateCnpj(cleanCnpj)) {
-      setError('Digite um CNPJ válido com 14 números.')
-      setData(null)
-      return
-    }
-
+  const performSearch = useCallback(async (cleanCnpj) => {
     setLoading(true)
     setError('')
     setData(null)
@@ -257,6 +593,7 @@ export default function App() {
     try {
       const response = await fetch(`${API_BASE_URL}/${cleanCnpj}`, {
         method: 'GET',
+        credentials: 'include',
         headers: { Accept: 'application/json' },
       })
 
@@ -287,6 +624,33 @@ export default function App() {
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  useEffect(() => {
+    if (!user || !pendingSearch) return
+    const cleanCnpj = pendingSearch
+    setPendingSearch('')
+    performSearch(cleanCnpj)
+  }, [pendingSearch, performSearch, user])
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    const cleanCnpj = onlyDigits(cnpj)
+
+    if (!validateCnpj(cleanCnpj)) {
+      setError('Digite um CNPJ válido com 14 números.')
+      setData(null)
+      return
+    }
+
+    if (!user) {
+      setPendingSearch(cleanCnpj)
+      setAccountNotice('Entre gratuitamente com sua conta Google para continuar a consulta.')
+      setAuthOpen(true)
+      return
+    }
+
+    await performSearch(cleanCnpj)
   }
 
   async function copyJson() {
@@ -315,25 +679,115 @@ export default function App() {
       <div className="pointer-events-none absolute left-1/2 top-[-26rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full border border-cyan-300/[0.07]" />
       <div className="pointer-events-none absolute left-1/2 top-[-21rem] h-[32rem] w-[32rem] -translate-x-1/2 rounded-full border border-indigo-300/[0.07]" />
 
-      <header className="relative z-10 border-b border-white/[0.06] bg-[#060a12]/70 backdrop-blur-xl">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.06] bg-[#060a12]/90 shadow-lg shadow-black/20 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/20 bg-gradient-to-br from-cyan-400/15 to-indigo-500/15 text-cyan-300 shadow-glow">
-              <BuildingIcon />
-            </div>
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              aria-label="Voltar ao topo"
+              title="Voltar ao topo"
+              className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-emerald-300/20 bg-[#030711] shadow-glow transition hover:border-emerald-300/40 hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+            >
+              <img src="/pilar-financas-pro-logo.png" alt="" className="pointer-events-none absolute -left-[50px] -top-[17px] h-[72px] w-[216px] max-w-none" />
+            </button>
             <div>
               <p className="text-sm font-semibold tracking-wide text-white">Consulta CNPJ</p>
               <p className="text-xs text-slate-500">Dados públicos empresariais</p>
             </div>
           </div>
-          <div className="hidden items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 sm:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.85)]" />
-            API pública CNPJ.ws
+          <div className="flex items-center gap-2">
+            {user ? (
+              <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-2">
+                {user.picture ? (
+                  <img src={user.picture} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-lg" />
+                ) : (
+                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-cyan-400/15 text-xs font-bold text-cyan-200">{user.name?.charAt(0) || '?'}</span>
+                )}
+                <div className="hidden max-w-28 text-left sm:block">
+                  <p className="truncate text-[11px] font-semibold text-slate-200">{user.name}</p>
+                  <button type="button" onClick={signOut} className="text-[10px] text-slate-500 transition hover:text-rose-300">Sair</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setAuthOpen(true)} className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.05] px-3.5 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-300/[0.1]">
+                Entrar com Google
+              </button>
+            )}
+
+            {billingStatus.premiumActive ? (
+              <a href="/premium-preview.html" className="flex items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-300/[0.07] px-3 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-300/[0.12]">
+                <span className="h-1.5 w-1.5 rounded-full bg-violet-300" />
+                Premium ativo
+              </a>
+            ) : (
+              <a href="/premium-preview.html" className="rounded-xl bg-gradient-to-r from-violet-400 to-indigo-400 px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110">
+                Seja Premium
+              </a>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:px-8">
+      <main className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-[8.25rem] sm:px-6 sm:pt-[9.5rem] lg:px-8">
+        {billingStatus.premiumActive && (
+          <section className="mx-auto mb-8 max-w-4xl rounded-2xl border border-violet-300/20 bg-gradient-to-r from-violet-400/[0.1] via-indigo-400/[0.06] to-cyan-400/[0.06] px-5 py-4 shadow-lg shadow-violet-950/20 sm:flex sm:items-center sm:justify-between sm:gap-5">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.13em] text-violet-200">
+                <ShieldIcon />
+                {billingStatus.plan === 'premium_monthly' ? 'Premium mensal confirmado' : 'Premium anual confirmado'}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Faça sua consulta completa com dados cadastrais, sócios, responsáveis, certidões e todos os campos disponíveis.
+              </p>
+            </div>
+            <div className="mt-3 shrink-0 text-xs font-medium text-violet-200 sm:mt-0 sm:text-right">
+              <div className="rounded-xl border border-violet-300/15 bg-black/15 px-3.5 py-2">
+                Válido até {new Intl.DateTimeFormat('pt-BR').format(new Date(billingStatus.activeUntil))}
+              </div>
+              {billingStatus.plan === 'premium_monthly' && billingStatus.cancelable && (
+                <button type="button" onClick={cancelMonthlyRenewal} disabled={cancelLoading} className="mt-2 text-[11px] text-slate-400 underline decoration-slate-600 underline-offset-4 transition hover:text-rose-300 disabled:cursor-wait disabled:opacity-60">
+                  {cancelLoading ? 'Cancelando...' : 'Cancelar renovação'}
+                </button>
+              )}
+              {billingStatus.plan === 'premium_monthly' && billingStatus.subscriptionStatus === 'cancelled' && (
+                <p className="mt-2 text-[11px] text-amber-200/80">Renovação cancelada</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {accountNotice && (
+          <p role="status" className="mx-auto mb-8 max-w-4xl rounded-xl border border-violet-300/15 bg-violet-300/[0.05] px-4 py-3 text-center text-xs text-violet-200">{accountNotice}</p>
+        )}
+
+        {!billingStatus.premiumActive && user && (
+          <section className="mx-auto mb-8 max-w-4xl rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.13em] text-cyan-200">Plano Básico ativo</p>
+              <p className="mt-1.5 text-sm leading-6 text-slate-400">Você pode consultar gratuitamente. No Premium, tenha leitura integral, relatórios, histórico e acompanhamento.</p>
+            </div>
+            <a href="/premium-preview.html" className="mt-3 inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-400 to-indigo-400 px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 sm:mt-0">
+              Conhecer o Premium
+            </a>
+          </section>
+        )}
+
+        {!user && (
+          <section className="mx-auto mb-8 max-w-4xl overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-r from-cyan-300/[0.11] via-sky-300/[0.06] to-indigo-300/[0.08] shadow-lg shadow-cyan-950/20 sm:flex sm:items-center sm:justify-between sm:gap-5">
+            <div className="self-stretch bg-cyan-300 px-2 py-1 text-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-950 sm:grid sm:w-12 sm:place-items-center sm:px-0 sm:py-3 sm:[writing-mode:vertical-rl]">
+              Acesso
+            </div>
+            <div className="px-5 py-4 sm:flex-1">
+              <p className="text-xs font-bold uppercase tracking-[0.13em] text-cyan-200">Login obrigatório para pesquisar</p>
+              <p className="mt-1.5 text-sm leading-6 text-slate-300">Entre gratuitamente com sua conta Google. O login libera a consulta Básica e não inicia nenhuma cobrança.</p>
+            </div>
+            <button type="button" onClick={() => setAuthOpen(true)} className="mx-5 mb-5 inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-cyan-300 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/15 transition hover:bg-cyan-200 sm:mx-0 sm:mb-0 sm:mr-5">
+              Entrar com Google agora
+            </button>
+          </section>
+        )}
+
         <section className="mx-auto max-w-4xl text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1.5 text-xs font-medium text-cyan-200">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
@@ -351,6 +805,24 @@ export default function App() {
         </section>
 
         <section className="mx-auto mt-10 max-w-4xl rounded-3xl border border-white/[0.08] bg-[#0b111d]/80 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-4">
+          {!user ? (
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
+              className="mb-3 flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-3 text-left transition hover:bg-cyan-300/[0.12]"
+            >
+              <span>
+                <span className="block text-xs font-bold uppercase tracking-[0.12em] text-cyan-200">Antes de pesquisar</span>
+                <span className="mt-1 block text-sm text-slate-300">Faça login gratuito com o Google para consultar.</span>
+              </span>
+              <span className="shrink-0 rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">Fazer login</span>
+            </button>
+          ) : (
+            <div className="mb-3 flex items-center gap-2 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] px-4 py-3 text-xs text-emerald-200">
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-300 text-[11px] font-black text-slate-950">✓</span>
+              Login confirmado. Sua consulta será vinculada à conta {user.email}.
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
             <div className="relative min-w-0 flex-1">
               <label htmlFor="cnpj" className="sr-only">CNPJ</label>
@@ -387,7 +859,7 @@ export default function App() {
               ) : (
                 <>
                   <SearchIcon />
-                  Consultar
+                  {user ? 'Consultar' : 'Entrar para consultar'}
                 </>
               )}
             </button>
@@ -422,10 +894,20 @@ export default function App() {
                     <h2 className="mt-4 text-2xl font-semibold tracking-[-0.02em] text-white sm:text-3xl">
                       {data.razao_social || 'Razão social não informada'}
                     </h2>
-                    {establishment?.nome_fantasia && (
+                  {establishment?.nome_fantasia && (
                       <p className="mt-2 text-base text-slate-400">{establishment.nome_fantasia}</p>
-                    )}
+                  )}
                   </div>
+
+                  {billingStatus.premiumActive && (
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-400 to-indigo-400 px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                    >
+                      Gerar relatório PDF
+                    </button>
+                  )}
 
                   <div className="hidden" aria-hidden="true">
                     <button
@@ -501,9 +983,30 @@ export default function App() {
               </section>
             )}
 
-            <RegularitySection establishment={establishment} />
+            <PartnersSection
+              partners={data.socios}
+              responsibleRole={data.qualificacao_do_responsavel?.descricao || data.qualificacao_do_responsavel}
+            />
 
-            <section className="rounded-3xl border border-white/[0.08] bg-[#0b111d]/85 p-4 shadow-2xl shadow-black/20 sm:p-6">
+            {billingStatus.premiumActive ? (
+              <RegularitySection establishment={establishment} />
+            ) : (
+              <section className="rounded-3xl border border-violet-300/15 bg-gradient-to-br from-violet-400/[0.08] to-[#0b111d] p-5 shadow-2xl shadow-black/20 sm:p-7">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="max-w-2xl">
+                    <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.08] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">Recurso Premium</span>
+                    <h2 className="mt-4 text-xl font-semibold text-white">Certidões e indícios de dívidas</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">Desbloqueie os acessos organizados para consultas Federal, Trabalhista, FGTS, Estadual e Municipal.</p>
+                  </div>
+                  <a href="/premium-preview.html" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-400 to-indigo-400 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                    Liberar no Premium
+                  </a>
+                </div>
+              </section>
+            )}
+
+            {billingStatus.premiumActive ? (
+              <section className="rounded-3xl border border-white/[0.08] bg-[#0b111d]/85 p-4 shadow-2xl shadow-black/20 sm:p-6">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300/80">Leitura dinâmica</p>
@@ -516,13 +1019,33 @@ export default function App() {
                 </div>
               </div>
               <JsonExplorer data={data} />
-            </section>
+              </section>
+            ) : (
+              <section className="overflow-hidden rounded-3xl border border-violet-300/15 bg-gradient-to-br from-violet-400/[0.08] to-[#0b111d] p-5 shadow-2xl shadow-black/20 sm:p-7">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="max-w-2xl">
+                    <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.08] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">Disponível no Premium</span>
+                    <h2 className="mt-4 text-xl font-semibold text-white">Aprofunde sua análise empresarial</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">Desbloqueie a leitura integral de todos os campos, relatórios profissionais, histórico de consultas e futuros alertas cadastrais.</p>
+                  </div>
+                  <a href="/premium-preview.html" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-400 to-indigo-400 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                    Tornar-se Premium
+                  </a>
+                </div>
+              </section>
+            )}
+
+            {billingStatus.premiumActive && (
+              <PrintableReport
+                data={data}
+                establishment={establishment}
+                phones={phones}
+                stateRegistrations={stateRegistrations}
+              />
+            )}
           </div>
         )}
 
-        <section className="mx-auto mt-8 max-w-4xl rounded-2xl border border-white/[0.06] bg-white/[0.025] px-4 py-3 text-center text-xs leading-5 text-slate-500">
-          A API pública possui limite de até 3 consultas por minuto por IP. Os dados exibidos são fornecidos pela CNPJ.ws.
-        </section>
       </main>
 
       <footer className="relative z-10 border-t border-white/[0.06] px-4 py-7 text-center text-xs text-slate-600">
@@ -539,6 +1062,8 @@ export default function App() {
           </a>
         </p>
       </footer>
+
+      {authOpen && <LoginModal onClose={() => setAuthOpen(false)} onAuthenticated={handleAuthenticated} />}
     </div>
   )
 }
