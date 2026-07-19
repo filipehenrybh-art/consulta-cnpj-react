@@ -449,6 +449,7 @@ export default function PremiumPreview() {
   const [notice, setNotice] = useState('')
   const [authOpen, setAuthOpen] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
   const [monthlyCardOpen, setMonthlyCardOpen] = useState(false)
   const [billingStatus, setBillingStatus] = useState({
     plan: 'basic',
@@ -607,6 +608,37 @@ export default function PremiumPreview() {
     setNotice('')
   }
 
+  async function cancelMonthlySubscription() {
+    const accessUntil = billingStatus.activeUntil
+      ? new Intl.DateTimeFormat('pt-BR').format(new Date(billingStatus.activeUntil))
+      : 'o fim do período já pago'
+    const confirmed = window.confirm(
+      `Deseja cancelar a renovação mensal? Não haverá novas cobranças e seu acesso Premium continuará até ${accessUntil}.`,
+    )
+    if (!confirmed) return
+
+    setCancelLoading(true)
+    setNotice('Cancelando a renovação mensal...')
+    try {
+      const response = await fetch('/api/billing/cancel', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const result = await readApiJson(response)
+      if (!response.ok) throw new Error(result.error || 'Não foi possível cancelar a renovação agora.')
+
+      const updatedStatus = await loadBillingStatus().catch(() => null)
+      const updatedUntil = updatedStatus?.activeUntil
+        ? new Intl.DateTimeFormat('pt-BR').format(new Date(updatedStatus.activeUntil))
+        : accessUntil
+      setNotice(`Renovação mensal cancelada. Não haverá novas cobranças e o Premium continuará ativo até ${updatedUntil}.`)
+    } catch (error) {
+      setNotice(error.message || 'Não foi possível cancelar a renovação agora.')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
   async function signOut() {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
@@ -721,6 +753,25 @@ export default function PremiumPreview() {
         {billingStatus.premiumActive && (
           <p className="mx-auto mt-4 max-w-5xl rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] px-4 py-3 text-center text-xs text-emerald-200">
             Premium {billingStatus.courtesy ? 'de cortesia' : billingStatus.plan === 'premium_monthly' ? 'mensal' : 'anual'} ativo nesta conta Google{billingStatus.activeUntil ? ` até ${new Intl.DateTimeFormat('pt-BR').format(new Date(billingStatus.activeUntil))}` : ' sem prazo de expiração'}.
+          </p>
+        )}
+
+        {billingStatus.cancelable && (
+          <div className="mx-auto mt-2 max-w-5xl text-center">
+            <button
+              type="button"
+              onClick={cancelMonthlySubscription}
+              disabled={cancelLoading}
+              className="text-[11px] text-slate-600 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {cancelLoading ? 'Cancelando renovação...' : 'Cancelar renovação mensal'}
+            </button>
+          </div>
+        )}
+
+        {billingStatus.premiumActive && billingStatus.subscriptionStatus === 'cancelled' && (
+          <p className="mx-auto mt-3 max-w-5xl text-center text-[11px] text-slate-500">
+            Renovação mensal cancelada. Seu acesso permanece disponível até o fim do período já pago.
           </p>
         )}
 
