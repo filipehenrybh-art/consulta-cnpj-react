@@ -676,6 +676,11 @@ export default function PremiumPreview() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {user?.admin && (
+              <a href="#admin-panel" className="inline-flex rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-2.5 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-300/[0.12] sm:px-3">
+                <span className="hidden sm:inline">Painel Admin</span><span className="sm:hidden">Admin</span>
+              </a>
+            )}
             {user ? (
               <div className="hidden items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-2 sm:flex">
                 {user.picture ? (

@@ -715,6 +715,12 @@ export default function App() {
               </button>
             )}
 
+            {user?.admin && (
+              <a href="/premium-preview.html#admin-panel" className="inline-flex rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-2.5 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-300/[0.12] sm:px-3">
+                <span className="hidden sm:inline">Painel Admin</span><span className="sm:hidden">Admin</span>
+              </a>
+            )}
+
             {billingStatus.premiumActive ? (
               <a href="/premium-preview.html" className="flex items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-300/[0.07] px-3 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-300/[0.12]">
                 <span className="h-1.5 w-1.5 rounded-full bg-violet-300" />

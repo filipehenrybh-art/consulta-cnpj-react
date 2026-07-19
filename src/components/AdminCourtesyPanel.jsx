@@ -119,7 +119,7 @@ export default function AdminCourtesyPanel() {
   const premiumUsers = users.filter((listedUser) => listedUser.billing?.premiumActive).length
 
   return (
-    <section className="mx-auto mt-8 max-w-5xl overflow-hidden rounded-3xl border border-amber-300/20 bg-gradient-to-b from-amber-300/[0.07] to-[#0b111d]" aria-labelledby="admin-courtesy-title">
+    <section id="admin-panel" className="mx-auto mt-8 max-w-5xl scroll-mt-24 overflow-hidden rounded-3xl border border-amber-300/20 bg-gradient-to-b from-amber-300/[0.07] to-[#0b111d]" aria-labelledby="admin-courtesy-title">
       <div className="border-b border-white/[0.07] px-5 py-5 sm:px-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
