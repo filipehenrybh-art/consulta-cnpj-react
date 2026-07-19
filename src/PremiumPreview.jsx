@@ -54,6 +54,8 @@ const billingOptions = {
 }
 
 const mercadoPagoPublicKey = String(import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '').trim()
+const mercadoPagoSandbox = import.meta.env.DEV
+  || String(import.meta.env.VITE_MERCADO_PAGO_USE_SANDBOX || '').trim().toLowerCase() === 'true'
 let mercadoPagoSdkPromise
 
 function loadMercadoPagoSdk() {
@@ -105,9 +107,13 @@ async function readApiJson(response) {
     return JSON.parse(text)
   } catch {
     if (response.status === 404) {
-      throw new Error('O servidor local de pagamentos está desatualizado. Feche os terminais antigos e execute npm.cmd run dev:full novamente.')
+      throw new Error(mercadoPagoSandbox
+        ? 'O servidor local de pagamentos está desatualizado. Feche os terminais antigos e execute npm.cmd run dev:full novamente.'
+        : 'O serviço de pagamentos está temporariamente indisponível. Tente novamente em alguns instantes.')
     }
-    throw new Error('O servidor local retornou uma resposta inválida. Reinicie o projeto e tente novamente.')
+    throw new Error(mercadoPagoSandbox
+      ? 'O servidor local retornou uma resposta inválida. Reinicie o projeto e tente novamente.'
+      : 'O serviço de pagamentos retornou uma resposta inválida. Tente novamente em alguns instantes.')
   }
 }
 
@@ -194,7 +200,9 @@ function PlanCard({
             : isPremium && selected && !authenticated
               ? 'Entrar para continuar'
               : isPremium && selected && authenticated
-                ? billing === 'annual' ? 'Pagar em ambiente de teste' : 'Assinar em ambiente de teste'
+                ? billing === 'annual'
+                  ? mercadoPagoSandbox ? 'Pagar em ambiente de teste' : 'Pagar plano anual'
+                  : mercadoPagoSandbox ? 'Assinar em ambiente de teste' : 'Assinar Premium Mensal'
                 : selected ? `${plan.name} selecionado` : plan.button}
       </button>
     </article>
@@ -211,7 +219,7 @@ function AuthModal({ billing, onClose, onAuthenticated }) {
           <div>
             <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">Premium</span>
             <h2 id="auth-title" className="mt-4 text-2xl font-semibold text-white">Entre para continuar</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Sua conta será usada para organizar consultas, relatórios e a futura assinatura.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Sua conta será usada para organizar consultas, relatórios e sua assinatura.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] text-lg text-slate-500 transition hover:text-white">×</button>
         </div>
@@ -225,7 +233,11 @@ function AuthModal({ billing, onClose, onAuthenticated }) {
         </div>
 
         <GoogleAuthPanel onAuthenticated={onAuthenticated} />
-        <p className="mt-5 text-center text-[11px] leading-5 text-slate-600">Esta é uma validação no Sandbox do Mercado Pago. Nenhum dinheiro real será movimentado.</p>
+        <p className="mt-5 text-center text-[11px] leading-5 text-slate-600">
+          {mercadoPagoSandbox
+            ? 'Esta é uma validação no Sandbox do Mercado Pago. Nenhum dinheiro real será movimentado.'
+            : 'Ao continuar, você poderá contratar o plano selecionado com pagamento processado pelo Mercado Pago.'}
+        </p>
       </div>
     </div>
   )
@@ -268,7 +280,9 @@ function MonthlyCardModal({ user, loading, onClose, onAuthorized }) {
               }
             },
             onError: () => {
-              if (active) setError('Confira os dados do cartão de teste e tente novamente.')
+              if (active) setError(mercadoPagoSandbox
+                ? 'Confira os dados do cartão de teste e tente novamente.'
+                : 'Não foi possível validar os dados do cartão. Confira as informações e tente novamente.')
             },
           },
         })
@@ -288,7 +302,9 @@ function MonthlyCardModal({ user, loading, onClose, onAuthorized }) {
       <div className="my-6 w-full max-w-xl rounded-3xl border border-white/[0.1] bg-[#0b111d] p-5 shadow-2xl shadow-black/60 sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">Sandbox seguro</span>
+            <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">
+              {mercadoPagoSandbox ? 'Sandbox seguro' : 'Pagamento seguro'}
+            </span>
             <h2 id="monthly-card-title" className="mt-4 text-2xl font-semibold text-white">Assinar Premium Mensal</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">R$ 19,90 por mês. Os dados do cartão são tratados diretamente pelo Mercado Pago.</p>
           </div>
@@ -297,7 +313,9 @@ function MonthlyCardModal({ user, loading, onClose, onAuthorized }) {
 
         {!mercadoPagoPublicKey ? (
           <div className="mt-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] px-4 py-4 text-sm leading-6 text-amber-100/80">
-            Adicione a Public Key do vendedor de teste em <code>VITE_MERCADO_PAGO_PUBLIC_KEY</code> no arquivo <code>.env</code> e reinicie o projeto.
+            {mercadoPagoSandbox
+              ? <>Adicione a Public Key do vendedor de teste em <code>VITE_MERCADO_PAGO_PUBLIC_KEY</code> no arquivo <code>.env</code> e reinicie o projeto.</>
+              : 'O pagamento mensal está temporariamente indisponível. Tente novamente em alguns instantes.'}
           </div>
         ) : (
           <div className="relative mt-6 min-h-48 rounded-2xl bg-white p-3 sm:p-4">
@@ -307,7 +325,10 @@ function MonthlyCardModal({ user, loading, onClose, onAuthorized }) {
         )}
 
         {error && <p role="alert" className="mt-4 rounded-xl border border-rose-300/15 bg-rose-300/[0.05] px-4 py-3 text-xs text-rose-200">{error}</p>}
-        <p className="mt-4 text-center text-[11px] leading-5 text-slate-600">Use somente os cartões oficiais de teste. Nenhum dado completo do cartão passa pelo servidor da Pilar Finanças.</p>
+        <p className="mt-4 text-center text-[11px] leading-5 text-slate-600">
+          {mercadoPagoSandbox && 'Use somente os cartões oficiais de teste. '}
+          Nenhum dado completo do cartão passa pelo servidor da Pilar Finanças.
+        </p>
       </div>
     </div>
   )
@@ -536,14 +557,18 @@ export default function PremiumPreview() {
 
   async function startCheckout() {
     if (billing === 'monthly') {
-      setNotice('Preencha o formulário seguro para autorizar a assinatura mensal de teste.')
+      setNotice(mercadoPagoSandbox
+        ? 'Preencha o formulário seguro para autorizar a assinatura mensal de teste.'
+        : 'Preencha o formulário seguro para contratar a assinatura mensal.')
       setMonthlyCardOpen(true)
       setCheckoutLoading(false)
       return
     }
 
     setCheckoutLoading(true)
-    setNotice('Preparando o checkout seguro em ambiente de teste...')
+    setNotice(mercadoPagoSandbox
+      ? 'Preparando o checkout seguro em ambiente de teste...'
+      : 'Preparando o checkout seguro do Mercado Pago...')
     try {
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
@@ -593,7 +618,7 @@ export default function PremiumPreview() {
     setUser(null)
     setBillingStatus({ plan: 'basic', premiumActive: false, activeUntil: null, subscriptionStatus: null, cancelable: false, courtesy: false })
     setSelectedPlan('basic')
-    setNotice('Sessão local encerrada.')
+    setNotice(mercadoPagoSandbox ? 'Sessão local encerrada.' : 'Sessão encerrada.')
   }
 
   return (
@@ -646,7 +671,9 @@ export default function PremiumPreview() {
 
       <main className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-[7.5rem] sm:px-6 sm:pt-[8.5rem] lg:px-8">
         <section className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-3 py-1.5 text-xs font-semibold text-violet-200">Backtest local — Mercado Pago sandbox</span>
+          <span className="inline-flex rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-3 py-1.5 text-xs font-semibold text-violet-200">
+            {mercadoPagoSandbox ? 'Backtest local — Mercado Pago Sandbox' : 'Planos Premium — pagamento seguro'}
+          </span>
           <h1 className="mt-6 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
             Uma consulta para cada{' '}
             <span className="bg-gradient-to-r from-cyan-300 via-indigo-300 to-violet-300 bg-clip-text text-transparent">momento do seu negócio</span>
@@ -681,9 +708,15 @@ export default function PremiumPreview() {
 
         {notice && <p role="status" className="mx-auto mt-4 max-w-5xl rounded-xl border border-violet-300/15 bg-violet-300/[0.05] px-4 py-3 text-center text-xs text-violet-200">{notice}</p>}
 
-        <p className="mx-auto mt-4 max-w-5xl rounded-xl border border-amber-300/15 bg-amber-300/[0.05] px-4 py-3 text-center text-xs leading-5 text-amber-100/80">
-          No Sandbox, abra esta página em uma janela anônima e entre no Mercado Pago com uma conta de teste do tipo Comprador. Não utilize sua conta Mercado Pago real.
-        </p>
+        {mercadoPagoSandbox ? (
+          <p className="mx-auto mt-4 max-w-5xl rounded-xl border border-amber-300/15 bg-amber-300/[0.05] px-4 py-3 text-center text-xs leading-5 text-amber-100/80">
+            No Sandbox, abra esta página em uma janela anônima e entre no Mercado Pago com uma conta de teste do tipo Comprador. Não utilize sua conta Mercado Pago real.
+          </p>
+        ) : (
+          <p className="mx-auto mt-4 max-w-5xl rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] px-4 py-3 text-center text-xs leading-5 text-emerald-100/80">
+            Pagamentos processados com segurança pelo Mercado Pago. O acesso Premium é vinculado à conta Google autenticada.
+          </p>
+        )}
 
         {billingStatus.premiumActive && (
           <p className="mx-auto mt-4 max-w-5xl rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] px-4 py-3 text-center text-xs text-emerald-200">
@@ -733,14 +766,16 @@ export default function PremiumPreview() {
           </div>
         </section>
 
-        <section className="mx-auto mt-6 max-w-5xl rounded-2xl border border-amber-300/10 bg-amber-300/[0.04] px-5 py-4 text-xs leading-5 text-amber-100/70">
-          O plano anual usa o checkout de testes do Mercado Pago. O Premium só é liberado depois da confirmação assinada por Webhook e permanece vinculado à conta Google autenticada. Não utilize cartões ou Pix reais durante o backtest.
+        <section className={`mx-auto mt-6 max-w-5xl rounded-2xl border px-5 py-4 text-xs leading-5 ${mercadoPagoSandbox ? 'border-amber-300/10 bg-amber-300/[0.04] text-amber-100/70' : 'border-white/[0.08] bg-white/[0.03] text-slate-400'}`}>
+          {mercadoPagoSandbox
+            ? 'O plano anual usa o checkout de testes do Mercado Pago. O Premium só é liberado depois da confirmação assinada por Webhook e permanece vinculado à conta Google autenticada. Não utilize cartões ou Pix reais durante o backtest.'
+            : 'O Premium é liberado depois da confirmação do pagamento pelo Mercado Pago e permanece vinculado à conta Google autenticada. Compras anuais são cobradas à vista; assinaturas mensais são recorrentes.'}
         </section>
       </main>
 
       <footer className="relative z-10 border-t border-white/[0.06] px-4 py-7 text-center text-xs text-slate-600">
         <p>Desenvolvido por Pilar Finanças by Filipe Henry</p>
-        <p className="mt-2">Prévia comercial — versão não publicada.</p>
+        <p className="mt-2">{mercadoPagoSandbox ? 'Prévia comercial — ambiente local de testes.' : 'Consulta CNPJ — Pilar Finanças Pro.'}</p>
       </footer>
 
       {authOpen && <AuthModal billing={billing} onClose={() => setAuthOpen(false)} onAuthenticated={handleAuthenticated} />}
