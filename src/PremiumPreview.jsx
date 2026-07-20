@@ -655,7 +655,7 @@ export default function PremiumPreview() {
 
   async function signOut() {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      await fetch('/api/auth/session', { method: 'POST', credentials: 'include' })
     } catch {
       // A sessão visual também é encerrada se o servidor local estiver indisponível.
     }

@@ -540,7 +540,7 @@ export default function App() {
 
   async function signOut() {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      await fetch('/api/auth/session', { method: 'POST', credentials: 'include' })
     } catch {
       // A interface encerra a sessão visual mesmo se a API local estiver indisponível.
     }

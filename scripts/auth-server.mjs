@@ -47,7 +47,6 @@ function loadGoogleKeysThroughWindows() {
 loadGoogleKeysThroughWindows()
 
 const { default: googleHandler } = await import('../api/auth/google.js')
-const { default: logoutHandler } = await import('../api/auth/logout.js')
 const { default: sessionHandler } = await import('../api/auth/session.js')
 const { default: adminUsersHandler } = await import('../api/admin/users.js')
 const { default: adminCourtesyHandler } = await import('../api/admin/courtesy.js')
@@ -62,7 +61,6 @@ const { default: cnpjHandler } = await import('../api/cnpj/[cnpj].js')
 
 const handlers = new Map([
   ['/api/auth/google', googleHandler],
-  ['/api/auth/logout', logoutHandler],
   ['/api/auth/session', sessionHandler],
   ['/api/admin/users', adminUsersHandler],
   ['/api/admin/courtesy', adminCourtesyHandler],
