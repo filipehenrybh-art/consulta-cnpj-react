@@ -25,6 +25,7 @@ if (!connectionString) {
         (select count(*)::int from entitlements where active and active_until > now()) as active_entitlements,
         (select count(*)::int from courtesy_grants where active and (active_until is null or active_until > now())) as active_courtesies,
         (select count(*)::int from webhook_events) as webhook_events,
+        (select count(*)::int from property_searches where deleted_at is null) as property_searches,
         (
           select count(*)::int
           from payment_orders po

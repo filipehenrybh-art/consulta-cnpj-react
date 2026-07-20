@@ -11,7 +11,7 @@
     "db:import-local": "node --env-file=.env scripts/import-local-billing.mjs",
     "db:check": "node --env-file=.env scripts/check-database.mjs",
     "tunnel:webhook": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-webhook-tunnel.ps1",
-    "test": "node --test tests/billing.test.mjs",
+    "test": "node --test",
     "build": "vite build",
     "preview": "vite preview"
   },

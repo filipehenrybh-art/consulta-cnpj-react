@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import GoogleAuthPanel from './components/GoogleAuthPanel.jsx'
 import AdminCourtesyPanel from './components/AdminCourtesyPanel.jsx'
+import SampleReportPreview from './components/SampleReportPreview.jsx'
 import {
   CheckIcon,
   ChevronIcon,
@@ -33,6 +34,7 @@ const plans = {
       'Histórico e organização de consultas',
       'Monitoramento de alterações cadastrais',
       'Checklist de certidões e vencimentos',
+      'Central de consulta imobiliária oficial',
       'Até 100 consultas detalhadas por mês',
     ],
   },
@@ -90,6 +92,7 @@ const comparison = [
   ['Histórico de empresas consultadas', false, true],
   ['Alertas de mudanças cadastrais', false, true],
   ['Controle de validade das certidões', false, true],
+  ['Central de consulta imobiliária', false, true],
   ['Experiência sem anúncios', false, true],
 ]
 
@@ -214,30 +217,37 @@ function AuthModal({ billing, onClose, onAuthenticated }) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#03060c]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-      <div className="w-full max-w-md rounded-3xl border border-white/[0.1] bg-[#0b111d] p-5 shadow-2xl shadow-black/60 sm:p-7">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">Premium</span>
-            <h2 id="auth-title" className="mt-4 text-2xl font-semibold text-white">Entre para continuar</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Sua conta será usada para organizar consultas, relatórios e sua assinatura.</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] text-lg text-slate-500 transition hover:text-white">×</button>
-        </div>
+      <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/[0.1] bg-[#0b111d] shadow-2xl shadow-black/60">
+        <div className="grid lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="p-5 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">Premium</span>
+                <h2 id="auth-title" className="mt-4 text-2xl font-semibold text-white">Entre para continuar</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Sua conta será usada para organizar consultas, relatórios e sua assinatura.</p>
+              </div>
+              <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] text-lg text-slate-500 transition hover:text-white">×</button>
+            </div>
 
-        <div className="my-5 flex items-center justify-between gap-4 rounded-2xl border border-violet-300/15 bg-violet-300/[0.05] px-4 py-3">
-          <div>
-            <p className="text-xs text-slate-500">Plano selecionado</p>
-            <p className="mt-1 text-sm font-semibold text-violet-200">Premium {offer.label}</p>
-          </div>
-          <p className="text-right text-sm font-semibold text-white">{offer.price}<span className="ml-1 text-xs font-normal text-slate-500">{offer.suffix}</span></p>
-        </div>
+            <div className="my-5 flex items-center justify-between gap-4 rounded-2xl border border-violet-300/15 bg-violet-300/[0.05] px-4 py-3">
+              <div>
+                <p className="text-xs text-slate-500">Plano selecionado</p>
+                <p className="mt-1 text-sm font-semibold text-violet-200">Premium {offer.label}</p>
+              </div>
+              <p className="text-right text-sm font-semibold text-white">{offer.price}<span className="ml-1 text-xs font-normal text-slate-500">{offer.suffix}</span></p>
+            </div>
 
-        <GoogleAuthPanel onAuthenticated={onAuthenticated} />
-        <p className="mt-5 text-center text-[11px] leading-5 text-slate-600">
-          {mercadoPagoSandbox
-            ? 'Esta é uma validação no Sandbox do Mercado Pago. Nenhum dinheiro real será movimentado.'
-            : 'Ao continuar, você poderá contratar o plano selecionado com pagamento processado pelo Mercado Pago.'}
-        </p>
+            <GoogleAuthPanel onAuthenticated={onAuthenticated} />
+            <p className="mt-5 text-center text-[11px] leading-5 text-slate-600">
+              {mercadoPagoSandbox
+                ? 'Esta é uma validação no Sandbox do Mercado Pago. Nenhum dinheiro real será movimentado.'
+                : 'Ao continuar, você poderá contratar o plano selecionado com pagamento processado pelo Mercado Pago.'}
+            </p>
+          </div>
+          <div className="border-t border-white/[0.08] bg-white/[0.015] p-4 sm:p-5 lg:border-l lg:border-t-0">
+            <SampleReportPreview />
+          </div>
+        </div>
       </div>
     </div>
   )

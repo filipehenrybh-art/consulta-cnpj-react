@@ -110,3 +110,21 @@ alter table webhook_events add column if not exists payload jsonb not null defau
 
 create index if not exists webhook_events_processed_at_idx
   on webhook_events (processed_at desc);
+
+create table if not exists property_searches (
+  id uuid primary key default gen_random_uuid(),
+  public_id text not null unique,
+  user_id uuid not null references users(id) on delete cascade,
+  cnpj char(14) not null,
+  company_name varchar(200) not null,
+  service_type text not null check (service_type in ('previous', 'qualified', 'registration_view', 'digital_certificate')),
+  state char(2) not null,
+  city varchar(120) not null,
+  purpose text not null check (purpose in ('supplier_analysis', 'credit_analysis', 'rights_protection', 'authorized_due_diligence', 'other_legitimate')),
+  status text not null default 'prepared' check (status in ('prepared')),
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create index if not exists property_searches_user_created_at_idx
+  on property_searches (user_id, created_at desc) where deleted_at is null;

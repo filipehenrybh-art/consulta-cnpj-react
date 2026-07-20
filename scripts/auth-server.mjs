@@ -56,6 +56,7 @@ const { default: subscribeHandler } = await import('../api/billing/subscribe.js'
 const { default: cancelSubscriptionHandler } = await import('../api/billing/cancel.js')
 const { default: billingReturnHandler } = await import('../api/billing/return.js')
 const { default: billingStatusHandler } = await import('../api/billing/status.js')
+const { default: propertySearchesHandler } = await import('../api/property-searches.js')
 const { default: mercadoPagoWebhookHandler } = await import('../api/webhooks/mercadopago.js')
 const { default: cnpjHandler } = await import('../api/cnpj/[cnpj].js')
 
@@ -70,6 +71,7 @@ const handlers = new Map([
   ['/api/billing/cancel', cancelSubscriptionHandler],
   ['/api/billing/return', billingReturnHandler],
   ['/api/billing/status', billingStatusHandler],
+  ['/api/property-searches', propertySearchesHandler],
   ['/api/webhooks/mercadopago', mercadoPagoWebhookHandler],
 ])
 

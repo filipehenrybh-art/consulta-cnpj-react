@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import JsonExplorer, { countFilledFields, formatValue, humanizeKey } from './components/JsonExplorer.jsx'
 import GoogleAuthPanel from './components/GoogleAuthPanel.jsx'
+import PropertyRegistrySection from './components/PropertyRegistrySection.jsx'
+import SampleReportPreview from './components/SampleReportPreview.jsx'
 import {
   AlertIcon,
   BuildingIcon,
@@ -455,22 +457,29 @@ function PrintableReport({ data, establishment, phones, stateRegistrations }) {
 function LoginModal({ onClose, onAuthenticated }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#03060c]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="login-title">
-      <div className="w-full max-w-md rounded-3xl border border-white/[0.1] bg-[#0b111d] p-5 shadow-2xl shadow-black/60 sm:p-7">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-200">Plano Básico</span>
-            <h2 id="login-title" className="mt-4 text-2xl font-semibold text-white">Entre para consultar</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">A conta Google é gratuita e identifica com segurança seu plano atual.</p>
+      <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/[0.1] bg-[#0b111d] shadow-2xl shadow-black/60">
+        <div className="grid lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="p-5 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-200">Plano Básico</span>
+                <h2 id="login-title" className="mt-4 text-2xl font-semibold text-white">Entre para consultar</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">A conta Google é gratuita e identifica com segurança seu plano atual.</p>
+              </div>
+              <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] text-lg text-slate-500 transition hover:text-white">×</button>
+            </div>
+
+            <div className="my-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] px-4 py-3 text-xs leading-5 text-slate-400">
+              Consulte dados cadastrais e sócios no plano Básico. Certidões, indícios de dívidas e relatórios ficam disponíveis no Premium.
+            </div>
+
+            <GoogleAuthPanel onAuthenticated={onAuthenticated} allowDemo={false} />
+            <p className="mt-5 text-center text-[11px] leading-5 text-slate-600">Entrar não inicia nenhuma cobrança.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] text-lg text-slate-500 transition hover:text-white">×</button>
+          <div className="border-t border-white/[0.08] bg-white/[0.015] p-4 sm:p-5 lg:border-l lg:border-t-0">
+            <SampleReportPreview />
+          </div>
         </div>
-
-        <div className="my-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] px-4 py-3 text-xs leading-5 text-slate-400">
-          Consulte dados cadastrais e sócios no plano Básico. Certidões, indícios de dívidas e relatórios ficam disponíveis no Premium.
-        </div>
-
-        <GoogleAuthPanel onAuthenticated={onAuthenticated} allowDemo={false} />
-        <p className="mt-5 text-center text-[11px] leading-5 text-slate-600">Entrar não inicia nenhuma cobrança.</p>
       </div>
     </div>
   )
@@ -1010,6 +1019,12 @@ export default function App() {
                 </div>
               </section>
             )}
+
+            <PropertyRegistrySection
+              data={data}
+              establishment={establishment}
+              premiumActive={billingStatus.premiumActive}
+            />
 
             {billingStatus.premiumActive ? (
               <section className="rounded-3xl border border-white/[0.08] bg-[#0b111d]/85 p-4 shadow-2xl shadow-black/20 sm:p-6">
