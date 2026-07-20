@@ -35,7 +35,16 @@ export default function GoogleAuthPanel({ onAuthenticated, allowDemo = true }) {
             })
             const result = await readResponse(validationResponse)
             if (!validationResponse.ok) throw new Error(result.error || 'Não foi possível autenticar.')
-            onAuthenticated(result.user)
+
+            const sessionResponse = await fetch('/api/auth/session', {
+              credentials: 'include',
+              cache: 'no-store',
+            })
+            const sessionResult = await readResponse(sessionResponse)
+            if (!sessionResponse.ok || !sessionResult.user) {
+              throw new Error('O navegador não salvou a sessão. Permita cookies para este site e tente novamente.')
+            }
+            onAuthenticated(sessionResult.user)
           } catch (error) {
             setAuthError(error.message || 'Não foi possível validar a credencial do Google.')
           }

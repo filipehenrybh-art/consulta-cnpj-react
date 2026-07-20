@@ -10,6 +10,7 @@ const SESSION_COOKIE = 'pilar_session'
 const SESSION_ISSUER = 'pilar-financas'
 const SESSION_AUDIENCE = 'consulta-cnpj'
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7
+const DEFAULT_ADMIN_GOOGLE_EMAILS = ['filipehenrybh@gmail.com']
 
 let cachedKeys = null
 let cachedKeysExpireAt = 0
@@ -199,7 +200,7 @@ export function sessionUserIsAdmin(user) {
     .split(',')
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean)
-  return Boolean(email && configuredEmails.includes(email))
+  return Boolean(email && [...DEFAULT_ADMIN_GOOGLE_EMAILS, ...configuredEmails].includes(email))
 }
 
 export function getAdminFromRequest(request) {

@@ -160,6 +160,7 @@ test('assinatura com credencial APP_USR não envia o escopo exclusivo de stage',
 
 test('somente a conta Google configurada recebe permissão administrativa', () => {
   assert.equal(auth.sessionUserIsAdmin({ email: 'ADMIN@example.com' }), true)
+  assert.equal(auth.sessionUserIsAdmin({ email: 'FILIPEHENRYBH@gmail.com' }), true)
   assert.equal(auth.sessionUserIsAdmin({ email: 'outro@example.com' }), false)
 })
 

@@ -514,9 +514,13 @@ export default function PremiumPreview() {
         return result.user
       })
       .then((sessionUser) => {
-        if (active && sessionUser) {
+        if (!active) return
+        if (sessionUser) {
           setUser(sessionUser)
           loadBillingStatus().catch(() => {})
+        } else if (!mercadoPagoSandbox) {
+          localStorage.removeItem('premium-preview-user')
+          setUser(null)
         }
       })
       .catch(() => {})
