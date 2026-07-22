@@ -3,6 +3,7 @@ import JsonExplorer, { countFilledFields, formatValue, humanizeKey } from './com
 import GoogleAuthPanel from './components/GoogleAuthPanel.jsx'
 import PropertyRegistrySection from './components/PropertyRegistrySection.jsx'
 import SampleReportPreview from './components/SampleReportPreview.jsx'
+import MobileAccountMenu from './components/MobileAccountMenu.jsx'
 import {
   AlertIcon,
   BuildingIcon,
@@ -10,6 +11,7 @@ import {
   CodeIcon,
   CopyIcon,
   ExternalLinkIcon,
+  LogOutIcon,
   SearchIcon,
   ShieldIcon,
   UsersIcon,
@@ -689,8 +691,8 @@ export default function App() {
       <div className="pointer-events-none absolute left-1/2 top-[-21rem] h-[32rem] w-[32rem] -translate-x-1/2 rounded-full border border-indigo-300/[0.07]" />
 
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.06] bg-[#060a12]/90 shadow-lg shadow-black/20 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-4 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -700,12 +702,12 @@ export default function App() {
             >
               <img src="/pilar-financas-pro-logo.png" alt="" className="pointer-events-none absolute -left-[50px] -top-[17px] h-[72px] w-[216px] max-w-none" />
             </button>
-            <div>
-              <p className="text-sm font-semibold tracking-wide text-white">Consulta CNPJ</p>
-              <p className="text-xs text-slate-500">Dados públicos empresariais</p>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold tracking-wide text-white sm:text-sm">Consulta CNPJ</p>
+              <p className="hidden truncate text-[10px] text-slate-500 min-[360px]:block sm:text-xs">Dados públicos empresariais</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 sm:flex">
             {user ? (
               <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-2">
                 {user.picture ? (
@@ -715,7 +717,7 @@ export default function App() {
                 )}
                 <div className="hidden max-w-28 text-left sm:block">
                   <p className="truncate text-[11px] font-semibold text-slate-200">{user.name}</p>
-                  <button type="button" onClick={signOut} className="text-[10px] text-slate-500 transition hover:text-rose-300">Sair</button>
+                  <button type="button" onClick={signOut} className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-rose-300/75 transition hover:text-rose-200"><LogOutIcon className="h-3 w-3" />Sair</button>
                 </div>
               </div>
             ) : (
@@ -741,12 +743,39 @@ export default function App() {
               </a>
             )}
           </div>
+          <div className="flex shrink-0 items-center gap-2 sm:hidden">
+            {user ? (
+              <>
+                <a href="/premium-preview.html" className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-semibold ${billingStatus.premiumActive ? 'border-violet-300/20 bg-violet-300/[0.08] text-violet-200' : 'border-white/[0.08] bg-white/[0.03] text-slate-300'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${billingStatus.premiumActive ? 'bg-violet-300' : 'bg-cyan-300'}`} />
+                  {billingStatus.premiumActive ? 'Premium' : 'Planos'}
+                </a>
+                <MobileAccountMenu
+                  user={user}
+                  premiumActive={billingStatus.premiumActive}
+                  adminHref="/premium-preview.html#admin-panel"
+                  primaryHref="/premium-preview.html"
+                  primaryLabel="Ver planos e minha assinatura"
+                  onSignOut={signOut}
+                />
+              </>
+            ) : (
+              <>
+                <a href="/premium-preview.html" className="inline-flex min-h-10 items-center rounded-xl border border-violet-300/15 bg-violet-300/[0.06] px-2.5 text-[11px] font-semibold text-violet-200 transition active:bg-violet-300/[0.12]">
+                  Planos
+                </a>
+                <button type="button" onClick={() => setAuthOpen(true)} className="inline-flex min-h-11 items-center rounded-xl bg-cyan-300 px-3 text-xs font-bold text-slate-950 shadow-lg shadow-cyan-500/10 transition active:scale-[0.98]">
+                  Entrar
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-[8.25rem] sm:px-6 sm:pt-[9.5rem] lg:px-8">
+      <main className="relative z-10 mx-auto max-w-7xl px-3 pb-20 pt-[6.5rem] sm:px-6 sm:pt-[9.5rem] lg:px-8">
         {billingStatus.premiumActive && (
-          <section className="mx-auto mb-8 max-w-4xl rounded-2xl border border-violet-300/20 bg-gradient-to-r from-violet-400/[0.1] via-indigo-400/[0.06] to-cyan-400/[0.06] px-5 py-4 shadow-lg shadow-violet-950/20 sm:flex sm:items-center sm:justify-between sm:gap-5">
+          <section className="mx-auto mb-5 max-w-4xl rounded-[1.35rem] border border-violet-300/20 bg-gradient-to-r from-violet-400/[0.1] via-indigo-400/[0.06] to-cyan-400/[0.06] px-4 py-4 shadow-lg shadow-violet-950/20 sm:mb-8 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:rounded-2xl sm:px-5">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.13em] text-violet-200">
                 <ShieldIcon />
@@ -808,18 +837,18 @@ export default function App() {
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
             Consulta completa e organizada
           </div>
-          <h1 className="mt-6 text-balance text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
+          <h1 className="mt-5 text-balance text-[2rem] font-semibold leading-[1.06] tracking-[-0.04em] text-white sm:mt-6 sm:text-5xl sm:leading-none lg:text-6xl">
             Consulte qualquer CNPJ com uma visão{' '}
             <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-indigo-300 bg-clip-text text-transparent">
               clara e profissional
             </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-slate-400 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-pretty text-sm leading-6 text-slate-400 sm:mt-5 sm:text-lg sm:leading-7">
             Pesquise dados cadastrais, endereço, atividade econômica, inscrições e todo o conteúdo retornado pela API em uma estrutura dinâmica.
           </p>
         </section>
 
-        <section className="mx-auto mt-10 max-w-4xl rounded-3xl border border-white/[0.08] bg-[#0b111d]/80 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-4">
+        <section className="mx-auto mt-7 max-w-4xl rounded-[1.35rem] border border-white/[0.08] bg-[#0b111d]/80 p-2.5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:mt-10 sm:rounded-3xl sm:p-4">
           {!user ? (
             <button
               type="button"
@@ -833,7 +862,7 @@ export default function App() {
               <span className="shrink-0 rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">Fazer login</span>
             </button>
           ) : (
-            <div className="mb-3 flex items-center gap-2 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] px-4 py-3 text-xs text-emerald-200">
+            <div className="mb-3 flex items-start gap-2 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] px-3.5 py-3 text-[11px] leading-5 text-emerald-200 sm:items-center sm:px-4 sm:text-xs">
               <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-300 text-[11px] font-black text-slate-950">✓</span>
               Login confirmado. Sua consulta será vinculada à conta {user.email}.
             </div>

@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import GoogleAuthPanel from './components/GoogleAuthPanel.jsx'
 import AdminCourtesyPanel from './components/AdminCourtesyPanel.jsx'
 import SampleReportPreview from './components/SampleReportPreview.jsx'
+import MobileAccountMenu from './components/MobileAccountMenu.jsx'
 import {
   CheckIcon,
   ChevronIcon,
+  LogOutIcon,
   ShieldIcon,
   UsersIcon,
 } from './components/Icons.jsx'
@@ -673,8 +675,8 @@ export default function PremiumPreview() {
       <div className="pointer-events-none absolute left-1/2 top-[-24rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-violet-500/[0.06] blur-3xl" />
 
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.06] bg-[#060a12]/90 shadow-lg shadow-black/20 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-4 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -684,19 +686,19 @@ export default function PremiumPreview() {
             >
               <img src="/pilar-financas-pro-logo.png" alt="" className="pointer-events-none absolute -left-[50px] -top-[17px] h-[72px] w-[216px] max-w-none" />
             </button>
-            <div>
-              <p className="text-sm font-semibold text-white">Consulta CNPJ</p>
-              <p className="text-xs text-slate-500">Pilar Finanças</p>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold text-white sm:text-sm">Consulta CNPJ</p>
+              <p className="hidden text-[10px] text-slate-500 min-[350px]:block sm:text-xs">Pilar Finanças</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 sm:flex">
             {user?.admin && (
               <a href="#admin-panel" className="inline-flex rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-2.5 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-300/[0.12] sm:px-3">
                 <span className="hidden sm:inline">Painel Admin</span><span className="sm:hidden">Admin</span>
               </a>
             )}
             {user ? (
-              <div className="hidden items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-2 sm:flex">
+              <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-2">
                 {user.picture ? (
                   <img src={user.picture} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-lg" />
                 ) : (
@@ -705,7 +707,7 @@ export default function PremiumPreview() {
                 <div className="max-w-32 text-left">
                   <p className="truncate text-[11px] font-semibold text-slate-200">{user.name}</p>
                   {user.admin && <p className="text-[9px] font-bold uppercase tracking-wider text-amber-300">Administrador</p>}
-                  <button type="button" onClick={signOut} className="text-[10px] text-slate-500 transition hover:text-rose-300">Sair</button>
+                  <button type="button" onClick={signOut} className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-rose-300/75 transition hover:text-rose-200"><LogOutIcon className="h-3 w-3" />Sair</button>
                 </div>
               </div>
             ) : (
@@ -717,19 +719,39 @@ export default function PremiumPreview() {
               Voltar à versão atual
             </a>
           </div>
+          <div className="flex shrink-0 items-center gap-2 sm:hidden">
+            <a href="/" className="inline-flex min-h-10 items-center rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-[11px] font-semibold text-cyan-200 transition active:bg-white/[0.08]">
+              Consulta
+            </a>
+            {user ? (
+              <MobileAccountMenu
+                user={user}
+                premiumActive={billingStatus.premiumActive}
+                adminHref="#admin-panel"
+                primaryHref="/"
+                primaryLabel="Voltar para consultar CNPJ"
+                onSignOut={signOut}
+                variant="violet"
+              />
+            ) : (
+              <button type="button" onClick={() => setAuthOpen(true)} className="inline-flex min-h-11 items-center rounded-xl bg-violet-400 px-3.5 text-xs font-bold text-white shadow-lg shadow-violet-500/10 transition active:scale-[0.98]">
+                Entrar
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-[7.5rem] sm:px-6 sm:pt-[8.5rem] lg:px-8">
+      <main className="relative z-10 mx-auto max-w-7xl px-3 pb-20 pt-[6.5rem] sm:px-6 sm:pt-[8.5rem] lg:px-8">
         <section className="mx-auto max-w-3xl text-center">
           <span className="inline-flex rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-3 py-1.5 text-xs font-semibold text-violet-200">
             {mercadoPagoSandbox ? 'Backtest local — Mercado Pago Sandbox' : 'Planos Premium — pagamento seguro'}
           </span>
-          <h1 className="mt-6 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+          <h1 className="mt-5 text-[2rem] font-semibold leading-[1.06] tracking-[-0.04em] text-white sm:mt-6 sm:text-5xl sm:leading-none">
             Uma consulta para cada{' '}
             <span className="bg-gradient-to-r from-cyan-300 via-indigo-300 to-violet-300 bg-clip-text text-transparent">momento do seu negócio</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-400">
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-400 sm:mt-5 sm:text-base sm:leading-7">
             Mantenha a consulta essencial gratuita e ofereça ferramentas de organização, relatórios e acompanhamento para usuários Premium.
           </p>
         </section>
